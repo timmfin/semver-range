@@ -59,5 +59,6 @@ module XSemVer
       end
 
       [new_major, new_minor, new_patch, new_special, new_metadata]
+    end
   end
 end

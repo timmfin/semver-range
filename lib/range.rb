@@ -20,7 +20,7 @@ module XSemVer
   PREFERRED_WILDCARD = WILDCARD_CHARS[0]
 
   # http://stackoverflow.com/questions/535721/ruby-max-integer
-  FIXNUM_MAX = (2**(0.size * 8 -2) -1)
+  FIXNUM_MAX = (2 ** (0.size * 8 - 2) - 1)
 
   BIGGEST_SEMVER = ::XSemVer::SemVer.new FIXNUM_MAX, FIXNUM_MAX, FIXNUM_MAX
   SMALLEST_SEMVER = ::XSemVer::SemVer.new 0, 0, 0
