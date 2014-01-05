@@ -1,3 +1,5 @@
+require 'semver'
+
 module XSemVer
   APPROXIMATE_OPERATORS = [
     '~',
