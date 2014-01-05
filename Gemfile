@@ -1,2 +1,8 @@
 source "http://rubygems.org"
-gemspec
+
+gem 'semver2', '~> 3.3.3'
+# gemspec
+
+group :test do
+  gem 'rspec'
+end

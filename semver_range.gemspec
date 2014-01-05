@@ -1,6 +1,5 @@
 $:.push File.expand_path("../lib", __FILE__)
-require 'semver'
-require 'semver_range'
+require 'semver-range'
 
 Gem::Specification.new do |spec|
   spec.name = "semver_range"
@@ -11,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["Tim Finley"]
   spec.homepage = 'https://github.com/timmfin/semver_range'
   spec.files = [".semver", "semver_range.gemspec", "README.md"] + Dir["lib/**/*.rb"]
-  spec.add_runtime_dependency 'semver', '~>3.3.3'
-  spec.add_development_dependency 'rspec', '~>2.12.0'
+  spec.add_runtime_dependency 'semver2', '~> 3.3.3'
+  spec.add_development_dependency 'rspec', '~> 2.12.0'
   spec.has_rdoc = true
 end
