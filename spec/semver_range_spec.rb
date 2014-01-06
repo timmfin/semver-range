@@ -394,12 +394,24 @@ describe XSemVer::SemVerRange do
     true.should be_false
   end
 
-  it "should parse shit" do
-    true.should be_false
-  end
-
   it "should parse wildcard ranges" do
-    true.should be_false
+    range_strings = [
+      "1.0.x",
+      "1.x.x",
+      "1.0.*",
+      "1.*.*",
+    ]
+
+    expected_ranges = [
+      SemVerRange.new(1, 0, 'x'),
+      SemVerRange.new(1, 'x', 'x'),
+      SemVerRange.new(1, 0, '*'),
+      SemVerRange.new(1, '*', '*'),
+    ]
+
+    range_strings.zip(expected_ranges).each do |str, expected|
+      SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V).should eq(expected)
+    end
   end
 
   it "should parse ranges with comparison operators" do
@@ -429,17 +441,7 @@ describe XSemVer::SemVerRange do
   end
 
   it "should parse strings without comparison operators as regular semvers" do
-    range_strings = [
-      "1.0.0",
-    ]
-
-    expected_ranges = [
-      SemVer.new(1, 0, 0)  # Not a SemVerRange!
-    ]
-
-    range_strings.zip(expected_ranges).each do |str, expected|
-      SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V).should eq(expected)
-    end
+    SemVerRange.parse("1.0.0", TAG_FORMAT_WITHOUT_V).should eq(SemVer.new(1, 0, 0))
   end
 
   # it "should parse missing parts as zeros" do

@@ -366,11 +366,20 @@ module XSemVer
         special = metadata = nil
 
         # Extract out the version parts
-        major = match[:major].to_i if match.names.include? 'major'
-        minor = match[:minor].to_i if match.names.include? 'minor'
-        patch = match[:patch].to_i if match.names.include? 'patch'
+        major = match[:major] if match.names.include? 'major'
+        minor = match[:minor] if match.names.include? 'minor'
+        patch = match[:patch] if match.names.include? 'patch'
         special = match[:special] if match.names.include? 'special'
         metadata = match[:metadata] if match.names.include? 'metadata'
+
+        # Convert any non-wildcard part to integers
+        major, minor, patch = [major, minor, patch].map do |part|
+          if is_wildcard_char? part
+            part
+          else
+            part.to_i
+          end
+        end
 
         # Ranges can't have prerelease or metadata strings
         if special or metadata
