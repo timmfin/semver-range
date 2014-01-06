@@ -34,6 +34,10 @@ describe XSemVer::SemVer do
     SemVer.new(1,2,3).matches?(SemVer.new(1,2,3)).should be_true
   end
 
+  it "should match strings" do
+    SemVer.new(1,2,3).matches?("v1.2.3").should be_true
+  end
+
   it "should not match anything else" do
     SemVer.new(1,2,3).matches?(SemVer.new(1,2,4)).should be_false
     SemVer.new(1,2,3).matches?(SemVer.new(1,3,3)).should be_false
@@ -74,6 +78,10 @@ describe XSemVer::SemVer do
 
   it "should increment the major part" do
     SemVer.new(1,2,3).increment(:major).should eq(SemVer.new(2,0,0))
+  end
+
+  it "should fail when incrementing an invalid part" do
+    expect { SemVer.new(1,2,3).increment(:foobar) }.to raise_error
   end
 
   it "should fail when the prerelease is incremented" do

@@ -263,11 +263,12 @@ describe XSemVer::SemVerRange do
     ranges.zip(lower_bounds).each do |range, expected_lower_bound|
       # puts "#{range} should have lower bound: #{expected_lower_bound}"
       range.lower_bound.should eq(expected_lower_bound)
+      range.lower_bound_inclusive.should eq(expected_lower_bound)
     end
   end
 
 
-  it "should compare against other basic ranges" do
+  it "should compare against other simple ranges" do
     ranges = [
       SemVerRange.new(0, 1, 0),
       SemVerRange.new(0, 1, 1),
@@ -277,6 +278,49 @@ describe XSemVer::SemVerRange do
 
     (ranges.size - 1).times do |n|
       ranges[n].should < ranges[n+1]
+    end
+  end
+
+  it "should compare against semvers" do
+    ranges = [
+      SemVerRange.new(0, 1, 0),
+      SemVerRange.new(0, 1, 1),
+      SemVerRange.new(0, 2, 0),
+      SemVerRange.new(1, 0, 0),
+    ]
+
+    semvers_equal_but_still_greater = [
+      SemVer.new(0, 1, 0),
+      SemVer.new(0, 1, 1),
+      SemVer.new(0, 2, 0),
+      SemVer.new(1, 0, 0),
+    ]
+
+    (ranges.size - 1).times do |n|
+      # SemVerRange should be less than SemVerRange when they have equivalent parts"
+      ranges[n].should < semvers_equal_but_still_greater[n]
+
+      (n + 1).upto(semvers_equal_but_still_greater.size - 1) do |j|
+        # print "\n", "#{ranges[n].inspect} < #{semvers_equal_but_still_greater[j]}", "\n\n"
+        ranges[n].should < semvers_equal_but_still_greater[j]
+      end
+    end
+  end
+
+  it "should compare against strings" do
+    small_range = SemVerRange.new(0, 1, 0)
+    big_range = SemVerRange.new(1, 0, 1)
+
+    strings = [
+      "v0.1.0",
+      "v0.1.1",
+      "v0.2.0",
+      "v1.0.0",
+    ]
+
+    strings.each do |string|
+      small_range.should < string
+      big_range.should > string
     end
   end
 
@@ -384,6 +428,20 @@ describe XSemVer::SemVerRange do
     end
   end
 
+  it "should parse strings without comparison operators as regular semvers" do
+    range_strings = [
+      "1.0.0",
+    ]
+
+    expected_ranges = [
+      SemVer.new(1, 0, 0)  # Not a SemVerRange!
+    ]
+
+    range_strings.zip(expected_ranges).each do |str, expected|
+      SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V).should eq(expected)
+    end
+  end
+
   # it "should parse missing parts as zeros" do
   #   range_strings = [
   #     "=1",
@@ -416,7 +474,7 @@ describe XSemVer::SemVerRange do
   #   end
   # end
 
-  it "shouldnt parse ranges with prerelase or metadata strings" do
+  it "shouldn't parse ranges with prerelase or metadata strings" do
     range_strings = [
       "=1.0.0-alpha",
       "< 1.0.0+metadata",
