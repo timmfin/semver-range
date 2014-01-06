@@ -1,3 +1,5 @@
+require 'rubygems'
+require 'bundler/setup'
 require 'semver'
 
 module XSemVer
@@ -24,13 +26,14 @@ module XSemVer
   # http://stackoverflow.com/questions/535721/ruby-max-integer
   FIXNUM_MAX = (2 ** (0.size * 8 - 2) - 1)
 
-  BIGGEST_SEMVER = ::XSemVer::SemVer.new FIXNUM_MAX, FIXNUM_MAX, FIXNUM_MAX
-  SMALLEST_SEMVER = ::XSemVer::SemVer.new 0, 0, 0
+  BIGGEST_SEMVER = SemVer.new FIXNUM_MAX, FIXNUM_MAX, FIXNUM_MAX
+  SMALLEST_SEMVER = SemVer.new 0, 0, 0
+  IMPOSSIBLY_SMALLEST_SEMVER = SemVer.new -1, -1, -1
 
   class SemVerRange < SemVer
     attr_accessor :comparison_operator
 
-    def initialize(major, minor, patch, comparison_operator = nil)
+    def initialize(major = 0, minor = 0, patch = 0, comparison_operator = nil)
       ensure_valid_parts major, minor, patch
       ensure_valid_comparison_operator comparison_operator
 
@@ -38,17 +41,6 @@ module XSemVer
       @minor = minor
       @patch = patch
       @comparison_operator = comparison_operator
-    end
-
-    def ensure_valid_parts(major, minor, patch)
-      is_digit_or_wildcard? major or raise InvalidSemVerRangeError.new "Invalid major: #{major}"
-      is_digit_or_wildcard? minor or raise InvalidSemVerRangeError.new "Invalid minor: #{minor}"
-      is_digit_or_wildcard? patch or raise InvalidSemVerRangeError.new "Invalid patch: #{patch}"
-    end
-
-    def ensure_valid_comparison_operator(operator)
-      return true if operator.nil?
-      COMPARISON_OPERATORS.include? @comparison_operator or raise InvalidSemVerRangeError.new "Invalid comparison operator"
     end
 
     def is_range?
@@ -67,7 +59,7 @@ module XSemVer
       lower_bound <= other_semver and other_semver < upper_bound
     end
 
-    def has_wildcard
+    def has_wildcard?
       [major, minor, patch].any? {|p| is_wildcard_char? p }
     end
 
@@ -79,17 +71,18 @@ module XSemVer
       [major, minor, patch].reject {|p| is_wildcard_char? p }
     end
 
-    def has_comparison_operator
+    def has_comparison_operator?
       !!@comparison_operator
     end
 
-    def increment
+    def increment!(part = nil)
       # Doesn't make sense to increment '*'
-      return dup if accepts_any_version?
+      return self if accepts_any_version?
 
       # Figure out the part to increment
-      part_to_increment = [:major, :minor, :patch][non_wildcard_parts.length - 1]
-      new_parts = increment_specific_part_helper part_to_increment, [major, minor, patch]
+      part = last_non_wildcard_part_symbol if part.nil?
+
+      new_parts = increment_specific_part_helper part, [major, minor, patch]
 
       # Carry over wildcards (since SemVer's increment method
       # may have zeroed them out)
@@ -101,8 +94,9 @@ module XSemVer
         end
       end
 
-      # Build a new range, ignoring any of the special or metadata parts
-      SemVerRange.new(*new_parts[0...3], comparison_operator)
+      # Modify the internal state
+      @major, @minor, @patch = new_parts
+      self
     end
 
     # Prepends the comparison operator to the normal format
@@ -124,54 +118,163 @@ module XSemVer
       end
     end
 
-    private
-
-    def has_approximate_comparison_operator?
-      APPROXIMATE_OPERATORS.include? @comparison_operator
-    end
-
     def lower_bound
-      if ['<', '<='].include? comparison_operator
+      if comparison_operator == '<' and to_a[0...3] == [0, 0, 0]
+        IMPOSSIBLY_SMALLEST_SEMVER.dup
+
+      elsif ['<', '<='].include? comparison_operator
         SMALLEST_SEMVER.dup
 
       # `> 1.2.3`'s lower bound is `1.2.4`
       # `> 1.2.x`'s lower bound is `1.3.0`
       elsif comparison_operator == '>'
         new_range = increment
-        new_range.convert_to_range_with_wildcards_as_zeros
+        new_range.build_as_semver_with_wildcards_as_zeros
 
       # `>= 1.2.3`'s lower bound is `1.2.3`
       # `~> 1.2.3`'s lower bound is `1.2.3`
       #  `= 1.2.3`'s lower bound is `1.2.3`
       #    `1.2.x`'s lower bound is `1.2.0`
       else
-        convert_to_range_with_wildcards_as_zeros
+        build_as_semver_with_wildcards_as_zeros
       end
+    end
+
+    def lower_bound_inclusive
+      lower_bound
     end
 
     def upper_bound
       if ['>', '>='].include? comparison_operator
         BIGGEST_SEMVER.dup
 
+      # `~> 1.2` or `~> 1.2.x`'s upper bound is `2.0.0`
       # `~> 1.2.3`'s upper bound is `1.3.0`
-      #  `< 1.2.x`'s upper bound is `1.3.0`
-      #  `< 1.2.3`'s upper bound is `1.2.4`
-      elsif has_approximate_comparison_operator? or comparison_operator == '<'
-        new_range = increment
-        new_range.convert_to_range_with_wildcards_as_zeros
+      elsif has_approximate_comparison_operator?
 
-      # `<= 1.2.3`'s upper bound is `1.2.3`
+        # New temp range with one more wildcard than it previously had (1.2.x -> 1.x.x)
+        new_range = dup
+        new_range.send "#{last_non_wildcard_part_symbol}=", PREFERRED_WILDCARD
+
+        # Increment that temp range to get the upper bound
+        new_range.increment!
+        new_range.build_as_semver_with_wildcards_as_zeros
+
+      # `<= 1.2.3`'s upper bound is `1.2.4`
+      #  `< 1.2.x`'s upper bound is `1.3.0`
+      #    `1.2.x`'s upper bound is `1.3.0`
+      elsif has_wildcard? or comparison_operator == '<='
+        new_range = increment
+        new_range.build_as_semver_with_wildcards_as_zeros
+
+      #  `< 1.2.3`'s upper bound is `1.2.3`
       #  `= 1.2.3`'s upper bound is `1.2.3`
-      #    `1.2.x`'s upper bound is `1.2.0`
       else
-        convert_to_range_with_wildcards_as_zeros
+        build_as_semver_with_wildcards_as_zeros
       end
     end
 
-    def convert_to_range_with_wildcards_as_zeros
-      parts_padded_with_zero = non_wildcard_parts.fill(0, non_wildcard_parts...3)
-      ::XSemVer::SemVer.new(*parts_padded_with_zero)
+    # Mostly just needed to simplify the implementation
+    # of <=>
+    def upper_bound_inclusive
+      result = upper_bound
+
+      # Some special cases:
+      #   - return a semver "off-the-charts" if the upper bound is 0.0.0
+      #   - deal with ranges that are not really ranges (like =v1.2.3)
+      #   - The "biggest semver" is its own upper bound
+      return IMPOSSIBLY_SMALLEST_SEMVER if result.to_a[0...3] == [0, 0, 0]
+      return result if upper_bound == lower_bound
+      return result if result == XSemVer::BIGGEST_SEMVER
+
+      # Figure out the part to decrement, taking care that we can't decrement
+      # a part that is already at 0
+      index_to_decrement = 2
+      while result.to_a[index_to_decrement] == 0 do
+        index_to_decrement -= 1
+      end
+
+      part_to_decrement = [:major, :minor, :patch][index_to_decrement]
+
+      # Dynamically decrement the specified part
+      value = result.send(part_to_decrement) - 1
+      result.send "#{part_to_decrement}=", value
+
+      # All the parts following the decremented one will be set to infinity
+      parts_to_set_to_infinity = [:major, :minor, :patch][index_to_decrement + 1...3]
+
+      parts_to_set_to_infinity.each do |part|
+        result.send "#{part}=", FIXNUM_MAX
+      end
+
+      result
     end
+
+    # Compare to other semvers or ranges by its upper and lower bounds
+    #
+    # Example ordering:
+    #   -  `> v1.1.0`
+    #   - `>= v1.1.0`
+    #   -  `> v1.0.1`
+    #   -  `> v1.0.0`
+    #   ...
+    #   - `~> v1.1`
+    #   -    `v1.x.x`
+    #   - `~> v1.1.0`
+    #
+    #   -    `v1.1.0`
+    #   - `<= v1.1.0`
+    #   - `~> v1.0.1`
+    #   - `~> v1.0.0`
+    #   -    `v1.0.x`
+    #   -  `< v1.1.0`
+    #
+    #   -    `v1.0.0`
+    #   - `<= v1.0.0`
+    #   - `~> v0.1`
+    #   -  `< v1.0.0`
+    #   -    `v0.9.9`
+    #   - `~> v0.1.2`
+    #   - `~> v0.1.1`
+    #
+    #   - `~> v0.0.0`
+    #      - `v0.0.1`
+    #   - `<= v0.0.0` (make invalid?)
+    #   -  `< v0.0.0` (make invalid?)
+    def <=>(other)
+      if other.is_a? SemVerRange
+        # print "\n", "upper compare #{upper_bound.inspect} <=> #{other.upper_bound.inspect} => #{upper_bound <=> other.upper_bound}", "\n\n"
+        # print "\n", "lower compare #{lower_bound.inspect} <=> #{other.lower_bound.inspect} => #{lower_bound <=> other.lower_bound}", "\n\n"
+        cmp = upper_bound_inclusive <=> other.upper_bound_inclusive
+        cmp = lower_bound <=> other.lower_bound if cmp == 0
+
+        # Always sort wildcards behind comparison operators (when otherwise idential)
+        # cmp = -1 if cmp == 0 and has_wildcard? and not other.has_wildcard?
+
+        # Always sort `<` behind `~>` (when otherwise idential)
+        cmp = -1 if cmp == 0 and comparison_operator == '<' and other.has_approximate_comparison_operator?
+        cmp
+
+      elsif other.is_a? SemVer
+        cmp = upper_bound_inclusive <=> other
+        cmp = lower_bound <=> other if cmp == 0
+
+        # Always sort ranges behind regular semvers when identical
+        cmp = -1 if cmp == 0
+        cmp
+
+      else
+        self <=> SemVerRange.parse(other)
+      end
+    end
+
+    # Override == to ensure wildcard behavior as described in <=>
+    def == other
+      (self <=> other) == 0
+    end
+
+
+    # Class methods
 
     def self.is_range_format str
       starts_with_operator str or has_wildcard_format str
@@ -279,6 +382,48 @@ module XSemVer
       end
 
     end
+
+    protected
+
+    def ensure_valid_parts(major, minor, patch)
+      is_digit_or_wildcard? major or raise InvalidSemVerRangeError.new "Invalid major: #{major}"
+      is_digit_or_wildcard? minor or raise InvalidSemVerRangeError.new "Invalid minor: #{minor}"
+      is_digit_or_wildcard? patch or raise InvalidSemVerRangeError.new "Invalid patch: #{patch}"
+    end
+
+    def is_digit_or_wildcard?(part)
+      part.is_a? Integer or is_wildcard_char? part
+    end
+
+    def ensure_valid_comparison_operator(operator)
+      return true if operator.nil?
+      COMPARISON_OPERATORS.include? operator or raise InvalidSemVerRangeError.new "Invalid comparison operator"
+    end
+
+    def has_approximate_comparison_operator?
+      APPROXIMATE_OPERATORS.include? @comparison_operator
+    end
+
+    def build_as_semver_with_wildcards_as_zeros
+      parts_padded_with_zero = non_wildcard_parts.fill(0, non_wildcard_parts.length...3)
+      ::XSemVer::SemVer.new(*parts_padded_with_zero)
+    end
+
+    def has_non_preferred_wildcard?
+      [major, minor, patch].any? {|p| is_non_preferred_wildcard_char? p }
+    end
+
+    def last_non_wildcard_part_symbol
+      [:major, :minor, :patch][non_wildcard_parts.length - 1]
+    end
+
+
+    # Aliases of class functions
+
+    def is_wildcard_char? str
+      self.class.is_wildcard_char? str
+    end
+
   end
 
   class InvalidSemVerRangeError < RuntimeError
