@@ -4,15 +4,15 @@ require 'semver'
 
 module XSemVer
   APPROXIMATE_OPERATORS = [
-    '~',
     '~>',
+    '~',
   ]
 
   COMPARISON_OPERATORS = [
-    '>',
     '>=',
-    '<',
+    '>',
     '<=',
+    '<',
     '=',
   ] + APPROXIMATE_OPERATORS
 
@@ -113,6 +113,7 @@ module XSemVer
         # Parse as a range if it looks like one
         parse_range version_string, format, allow_missing
       else
+        puts "fallthrough to base parse"
         # Otherwise just parse and create a regular SemVer
         ::XSemVer::SemVer.parse version_string, format, allow_missing
       end
@@ -276,25 +277,26 @@ module XSemVer
 
     # Class methods
 
-    def self.is_range_format str
-      starts_with_operator str or has_wildcard_format str
+    def self.is_range_format? str
+      starts_with_operator? str or has_wildcard_format? str
     end
 
-    def self.starts_with_operator str
-      not operator_regex.match(str).nil?
+    def self.starts_with_operator? str
+      match = operator_regex.match(str)
+      match && match[:operator]
     end
 
     def self.is_wildcard_char? str
       WILDCARD_CHARS.include? str
     end
 
-    def self.has_wildcard_format str
+    def self.has_wildcard_format? str
       match = major_minor_patch_with_wildcards_regex.match(str)
 
       # Check that any of the matches (major, minor, or patch bits)
       # is a wildcard
       if match
-        match.captures.any? do |capture|
+        return match.captures.any? do |capture|
           is_wildcard_char? capture
         end
       end
@@ -303,19 +305,19 @@ module XSemVer
     end
 
     def self.major_minor_patch_with_wildcards_regex
-      return @major_minor_patch_with_wildcards_regex unless major_minor_patch_with_wildcards_regex.nil?
+      return @major_minor_patch_with_wildcards_regex unless @major_minor_patch_with_wildcards_regex.nil?
 
-      any_wildcard = WILDCARD_CHARS.map { |w| Regex.escape(w) }.join('|')
-      digit_or_wildcard = "\d+|#{any_wildcard}"
+      any_wildcard = WILDCARD_CHARS.map { |w| Regexp.escape(w) }.join('|')
+      digit_or_wildcard = "(\\d+|#{any_wildcard})"
       three_digits_or_wildcards = ([digit_or_wildcard] * 3).join('.')
 
-      @major_minor_patch_with_wildcards_regex = Regex.new three_digits_or_wildcards
+      @major_minor_patch_with_wildcards_regex = Regexp.new ".*#{three_digits_or_wildcards}.*"
     end
 
     def self.operator_regex
-      return @operator_regex unless operator_regex.nil?
+      return @operator_regex unless @operator_regex.nil?
 
-      union_of_operators = COMPARISON_OPERATORS.map {|o| Regex.escape(o) }.join('|')
+      union_of_operators = COMPARISON_OPERATORS.map {|o| Regexp.escape(o) }.join('|')
       @operator_regex = /^\s*(?<operator>#{union_of_operators})\s*(?<rest>.+)/
     end
 
@@ -326,16 +328,21 @@ module XSemVer
     #  - Accept 'x' or '*' for major, minor, or patch
     #  - Looks for an operator at the beginning of the string
     #  - Don't allow prerelease or metadata string in ranges
-    #  - If a minor or patch is missing (and allow_missing is true), then set
-    #    them to a wildcard instead of 0
+    #  - If it has an approximate comparison operator and the minor or
+    #    patch is missing (and allow_missing is true) then set the missing
+    #    parts to a wildcard
+    #
+    #  Also, I realized that allow_missing doesn't work with the default format.
+    #  To fix that, we'd need to add some fanciness to make the dots between version
+    #  parts be optional or something similar.
     def self.parse_range(version_string, format = nil, allow_missing = true)
       format ||= TAG_FORMAT
       comparison_operator = nil
 
       operator_match = operator_regex.match version_string
       if operator_match
-        comparison_operator, rest = operator_match.named_captures
-        version_string = rest
+        comparison_operator = operator_match[:operator]
+        version_string = operator_match[:rest]
       end
 
       regex_str = Regexp.escape format
@@ -348,7 +355,8 @@ module XSemVer
         gsub('%s', '(?:-(?<special>[A-Za-z][0-9A-Za-z\.]+))?').
         gsub('%d', '(?:\x2B(?<metadata>[0-9A-Za-z][0-9A-Za-z\.]*))?')
 
-      print "\n", "regex_str:  #{regex_str.inspect}", "\n\n"
+      # puts "version_string: #{version_string}"
+      # print "regex_str:  #{regex_str.inspect}"
 
       regex = Regexp.new(regex_str)
       match = regex.match version_string
@@ -373,10 +381,14 @@ module XSemVer
         # and allow_missing is false
         return nil if !allow_missing and [major, minor, patch].any? {|x| x.nil? }
 
-        # Otherwise, allow them to default to a wildcard (1.2 -> 1.2.x)
-        major ||= PREFERRED_WILDCARD
-        minor ||= PREFERRED_WILDCARD
-        patch ||= PREFERRED_WILDCARD
+        # Otherwise, allow them to default to zero (`1.2` -> 1.2.0) or
+        # wildcard (`~> 1.2` -> 1.2.x)
+        default_part = 0
+        default_part = PREFERRED_WILDCARD if APPROXIMATE_OPERATORS.include? comparison_operator
+
+        major ||= default_part
+        minor ||= default_part
+        patch ||= default_part
 
         SemVerRange.new major, minor, patch, comparison_operator
       end

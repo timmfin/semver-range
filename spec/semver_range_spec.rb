@@ -4,6 +4,9 @@ x = 'x'
 i = infinity = XSemVer::FIXNUM_MAX
 SemVerRange = XSemVer::SemVerRange
 
+TAG_FORMAT_WITHOUT_V = "%M.%m.%p%s%d"
+
+
 describe XSemVer::SemVerRange do
 
   it "should be a range" do
@@ -348,5 +351,80 @@ describe XSemVer::SemVerRange do
 
   it "should parse shit" do
     true.should be_false
+  end
+
+  it "should parse wildcard ranges" do
+    true.should be_false
+  end
+
+  it "should parse ranges with comparison operators" do
+    range_strings = [
+      "> 1.0.0",
+      ">= 1.0.0",
+      "< 1.0.0",
+      "<= 1.0.0",
+      "~> 1.0.0",
+      "~1.0.0",
+      "=1.0.0",
+    ]
+
+    expected_ranges = [
+      SemVerRange.new(1, 0, 0, ">"),
+      SemVerRange.new(1, 0, 0, ">="),
+      SemVerRange.new(1, 0, 0, "<"),
+      SemVerRange.new(1, 0, 0, "<="),
+      SemVerRange.new(1, 0, 0, "~>"),
+      SemVerRange.new(1, 0, 0, "~"),
+      SemVerRange.new(1, 0, 0, "="),
+    ]
+
+    range_strings.zip(expected_ranges).each do |str, expected|
+      SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V).should eq(expected)
+    end
+  end
+
+  # it "should parse missing parts as zeros" do
+  #   range_strings = [
+  #     "=1",
+  #     "< 1.0",
+  #   ]
+  #
+  #   expected_ranges = [
+  #     SemVerRange.new(1, 0, 0),
+  #     SemVerRange.new(1, 0, 0, "<"),
+  #   ]
+  #
+  #   range_strings.zip(expected_ranges).each do |str, expected|
+  #     SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V).should eq(expected)
+  #   end
+  # end
+
+  # it "should parse missing parts as wildcards when approximate" do
+  #   range_strings = [
+  #     "~> 1",
+  #     "~1.0",
+  #   ]
+  #
+  #   expected_ranges = [
+  #     SemVerRange.new(1, 0, 0, "~>"),
+  #     SemVerRange.new(1, 0, 0, "~"),
+  #   ]
+  #
+  #   range_strings.zip(expected_ranges).each do |str, expected|
+  #     SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V).should eq(expected)
+  #   end
+  # end
+
+  it "shouldnt parse ranges with prerelase or metadata strings" do
+    range_strings = [
+      "=1.0.0-alpha",
+      "< 1.0.0+metadata",
+      "1.0.x-alpha+metadata",
+    ]
+
+    range_strings.each do |str|
+      # print "\n", "str:  #{str.inspect}", "\n\n"
+      expect { SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V) }.to raise_error XSemVer::InvalidSemVerRangeError
+    end
   end
 end
