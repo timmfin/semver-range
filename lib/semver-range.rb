@@ -113,7 +113,6 @@ module XSemVer
         # Parse as a range if it looks like one
         parse_range version_string, format, allow_missing
       else
-        puts "fallthrough to base parse"
         # Otherwise just parse and create a regular SemVer
         ::XSemVer::SemVer.parse version_string, format, allow_missing
       end
@@ -141,6 +140,7 @@ module XSemVer
       end
     end
 
+    # Since lower_bound is already inclusive, this is just an alias
     def lower_bound_inclusive
       lower_bound
     end
@@ -419,10 +419,6 @@ module XSemVer
     def build_as_semver_with_wildcards_as_zeros
       parts_padded_with_zero = non_wildcard_parts.fill(0, non_wildcard_parts.length...3)
       ::XSemVer::SemVer.new(*parts_padded_with_zero)
-    end
-
-    def has_non_preferred_wildcard?
-      [major, minor, patch].any? {|p| is_non_preferred_wildcard_char? p }
     end
 
     def last_non_wildcard_part_symbol

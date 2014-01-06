@@ -1,3 +1,4 @@
+require 'spec_helper'
 require 'semver-extensions'
 
 # Test the extensions to SemVer
