@@ -1,3 +1,6 @@
+require 'rubygems'
+require 'bundler/setup'
+
 # A few extensions to the base SemVer class
 module XSemVer
   class SemVer

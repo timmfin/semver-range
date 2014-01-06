@@ -1,8 +1,7 @@
-require 'semver-range'
 require 'semver-extensions'
 
 # Test the extensions to SemVer
-describe SemVer do
+describe XSemVer::SemVer do
 
   it "should convert all its parts to an array" do
     semvers = [
