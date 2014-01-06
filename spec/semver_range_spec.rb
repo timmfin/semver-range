@@ -106,22 +106,22 @@ describe XSemVer::SemVerRange do
       SemVer.new(2, 0, 0),
       SemVer.new(1, 2, 0),
 
-      SemVer.new(1, 1, 0),
+      SemVer.new(1, 1, 1),
       SemVer.new(1, 1, 1),
       SemVer.new(1, 1, 0),
       SemVer.new(1, 1, 0),
       SemVer.new(1, 1, 0),
       SemVer.new(1, 1, 0),
 
-      SemVer.new(1, 0, 0),
+      SemVer.new(1, 0, 1),
       SemVer.new(1, 0, 1),
       SemVer.new(0, 2, 0),
       SemVer.new(0, 2, 0),
       SemVer.new(1, 0, 0),
-      SemVer.new(0, 9, 9),
+      SemVer.new(0, 9, 10),
 
       SemVer.new(0, 1, 0),
-      SemVer.new(0, 0, 1),
+      SemVer.new(0, 0, 2),
       SemVer.new(0, 0, 1),
       SemVer.new(0, 0, 0),
     ]
@@ -390,8 +390,224 @@ describe XSemVer::SemVerRange do
     SemVerRange.new(1, '*', '*').increment.should eq(SemVerRange.new(2, '*', '*'))
   end
 
-  it "should match shit" do
-    true.should be_false
+  it "should match other semvers" do
+
+    match_data = [{
+      range: SemVerRange.new(1, 1, 0, '>'),
+      matches: [
+        SemVer.new(100, 100, 100),
+        SemVer.new(1, 2, 0),
+        SemVer.new(1, 1, 1),
+      ],
+
+      doesnt_match: [
+        SemVer.new(1, 1, 0),
+        SemVer.new(1, 0, 0),
+        SemVer.new(0, 1, 0),
+        SemVer.new(0, 0, 1),
+      ]
+    }, {
+      range: SemVerRange.new(1, 1, 0, '>='),
+      matches: [
+        SemVer.new(100, 100, 100),
+        SemVer.new(1, 2, 0),
+        SemVer.new(1, 1, 1),
+        SemVer.new(1, 1, 0),
+      ],
+
+      doesnt_match: [
+        SemVer.new(1, 0, 100),
+        SemVer.new(0, 1, 0),
+        SemVer.new(0, 0, 1),
+      ]
+
+    }, {
+      range: SemVerRange.new(1, 0, 1, '>'),
+      matches: [
+        SemVer.new(100, 100, 100),
+        SemVer.new(1, 1, 0),
+        SemVer.new(1, 0, 2),
+      ],
+      doesnt_match: [
+        SemVer.new(1, 0, 1),
+        SemVer.new(0, 1, 0),
+        SemVer.new(0, 0, 1),
+      ]
+    }, {
+      range: SemVerRange.new(1, 0, 0, '>'),
+      matches: [
+        SemVer.new(100, 100, 100),
+        SemVer.new(1, 1, 0),
+        SemVer.new(1, 0, 1),
+      ],
+      doesnt_match: [
+        SemVer.new(1, 0, 0),
+        SemVer.new(0, 1, 0),
+        SemVer.new(0, 0, 1),
+      ]
+    }, {
+      range: SemVerRange.new(1, 1, x, '~>'),
+      matches: [
+        SemVer.new(1, 100, 0),
+        SemVer.new(1, 2, 0),
+        SemVer.new(1, 1, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(100, 0, 0),
+        SemVer.new(2, 0, 0),
+        SemVer.new(1, 0, 0),
+        SemVer.new(0, 1, 0),
+        SemVer.new(0, 0, 1),
+      ]
+    }, {
+      range: SemVerRange.new(1, x, x),
+      matches: [
+        SemVer.new(1, 100, 100),
+        SemVer.new(1, 1, 1),
+        SemVer.new(1, 0, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(2, 0, 0),
+        SemVer.new(0, 1, 0),
+        SemVer.new(0, 1, 1),
+      ]
+    }, {
+      range: SemVerRange.new(1, 1, 0, '~>'),
+      matches: [
+        SemVer.new(1, 1, 100),
+        SemVer.new(1, 1, 1),
+        SemVer.new(1, 1, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(100, 0, 0),
+        SemVer.new(1, 2, 0),
+        SemVer.new(1, 0, 100),
+        SemVer.new(1, 0, 0),
+      ]
+    }, {
+      range: SemVerRange.new(1, 1, 0),
+      matches: [
+        SemVer.new(1, 1, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(2, 1, 0),
+        SemVer.new(1, 2, 0),
+        SemVer.new(1, 1, 1),
+        SemVer.new(1, 0, 0),
+        SemVer.new(0, 1, 0),
+      ]
+    }, {
+      range: SemVerRange.new(1, 1, 0, '<='),
+      matches: [
+        SemVer.new(1, 1, 0),
+        SemVer.new(1, 0, 0),
+        SemVer.new(0, 0, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(1, 1, 1),
+        SemVer.new(2, 0, 0),
+      ]
+    }, {
+      range: SemVerRange.new(1, 0, x),
+      matches: [
+        SemVer.new(1, 0, 100),
+        SemVer.new(1, 0, 1),
+        SemVer.new(1, 0, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(1, 1, 0),
+        SemVer.new(0, 100, 100),
+      ]
+    }, {
+      range: SemVerRange.new(1, 1, 0, '<'),
+      matches: [
+        SemVer.new(1, 0, 100),
+        SemVer.new(1, 0, 0),
+        SemVer.new(0, 0, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(1, 1, 0),
+        SemVer.new(2, 0, 0),
+      ]
+    }, {
+      range: SemVerRange.new(0, 1, x, '~>'),
+      matches: [
+        SemVer.new(0, 100, 100),
+        SemVer.new(0, 100, 0),
+        SemVer.new(0, 1, 100),
+        SemVer.new(0, 1, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(100, 0, 0),
+        SemVer.new(1, 0, 0),
+        SemVer.new(0, 0, 100),
+        SemVer.new(0, 0, 1),
+      ]
+    }, {
+      range: SemVerRange.new(0, 1, 2, '~>'),
+      matches: [
+        SemVer.new(0, 1, 100),
+        SemVer.new(0, 1, 2),
+      ],
+      doesnt_match: [
+        SemVer.new(0, 2, 0),
+        SemVer.new(0, 1, 1),
+      ]
+    }, {
+      range: SemVerRange.new(0, 1, 1, '~>'),
+      matches: [
+        SemVer.new(0, 1, 100),
+        SemVer.new(0, 1, 1),
+      ],
+      doesnt_match: [
+        SemVer.new(0, 2, 0),
+        SemVer.new(0, 1, 0),
+      ]
+
+    }, {
+      range: SemVerRange.new(0, 0, 0, '~>'),
+      matches: [
+        SemVer.new(0, 0, 100),
+        SemVer.new(0, 0, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(0, 1, 0),
+      ]
+    }, {
+      range: SemVerRange.new(0, 0, 0, '<='),
+      matches: [
+        SemVer.new(0, 0, 0),
+      ],
+      doesnt_match: [
+        SemVer.new(0, 0, 1),
+      ]
+    }, {
+      range: SemVerRange.new(0, 0, 0, '<'),
+      matches: [],
+      doesnt_match: [
+        SemVer.new(0, 0, 0),
+      ]
+    }]
+
+    match_data.each do |data|
+      data[:matches].each do |to_match|
+        # puts "#{data[:range].inspect}.matches? #{to_match.inspect}"
+        data[:range].matches?(to_match).should be_true
+      end
+
+      data[:doesnt_match].each do |to_not_match|
+        # puts "#{data[:range].inspect} doesn't match #{to_not_match.inspect}"
+        data[:range].matches?(to_not_match).should be_false
+      end
+    end
+  end
+
+  it "should match other strings" do
+    SemVerRange.new(1, 2, x).matches?("v1.2.3").should be_true
+  end
+
+  it "should not match other ranges" do
+    expect { SemVerRange.new(1, 2, x).matches? SemVerRange.new(1,2,x) }.to raise_error
   end
 
   it "should parse wildcard ranges" do
@@ -403,8 +619,8 @@ describe XSemVer::SemVerRange do
     ]
 
     expected_ranges = [
-      SemVerRange.new(1, 0, 'x'),
-      SemVerRange.new(1, 'x', 'x'),
+      SemVerRange.new(1, 0, x),
+      SemVerRange.new(1, x, x),
       SemVerRange.new(1, 0, '*'),
       SemVerRange.new(1, '*', '*'),
     ]

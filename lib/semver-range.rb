@@ -28,7 +28,7 @@ module XSemVer
 
   BIGGEST_SEMVER = SemVer.new FIXNUM_MAX, FIXNUM_MAX, FIXNUM_MAX
   SMALLEST_SEMVER = SemVer.new 0, 0, 0
-  IMPOSSIBLY_SMALLEST_SEMVER = SemVer.new -1, -1, -1
+  IMPOSSIBLY_SMALLEST_SEMVER = SemVer.new(-1, -1, -1)
 
   class SemVerRange < SemVer
     attr_accessor :comparison_operator
@@ -50,7 +50,9 @@ module XSemVer
     def matches?(version_string_or_semver)
       return true if accepts_any_version?
 
-      if version_string_or_semver.is_a? ::XSemVer::SemVer
+      if version_string_or_semver.is_a? SemVerRange
+        raise "Cannot match two ranges"
+      elsif version_string_or_semver.is_a? ::XSemVer::SemVer
         other_semver = version_string_or_semver
       else
         other_semver = ::XSemVer::SemVer.parse version_string_or_semver
@@ -165,6 +167,11 @@ module XSemVer
       #  `< 1.2.x`'s upper bound is `1.3.0`
       #    `1.2.x`'s upper bound is `1.3.0`
       elsif has_wildcard? or comparison_operator == '<='
+        new_range = increment
+        new_range.build_as_semver_with_wildcards_as_zeros
+
+      #    `1.2.3`'s upper bound is `1.2.4`
+      elsif not has_wildcard? and not has_comparison_operator?
         new_range = increment
         new_range.build_as_semver_with_wildcards_as_zeros
 
