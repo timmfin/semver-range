@@ -3,12 +3,11 @@ require 'semver-range'
 
 x = 'x'
 i = infinity = XSemVer::FIXNUM_MAX
-SemVerRange = XSemVer::SemVerRange
 
 TAG_FORMAT_WITHOUT_V = "%M.%m.%p%s%d"
 
 
-describe XSemVer::SemVerRange do
+describe SemVerRange do
 
   it "should be a range" do
     SemVerRange.new(1, 2, 3, '<').is_range?.should be_true
