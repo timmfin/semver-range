@@ -1,9 +1,10 @@
 $:.push File.expand_path("../lib", __FILE__)
 require 'semver-range'
+require 'semver'
 
 Gem::Specification.new do |spec|
-  spec.name = "semver_range"
-  spec.version = SemVer.find.format '%M.%m.%p'
+  spec.name = "semver-range"
+  spec.version = XSemVer::SemVer.find.format '%M.%m.%p'
   spec.summary = "Semantic Versioning Ranges"
   spec.description = "Extends haf/semver (as defined at http://semver.org) to have query-able ranges"
   spec.email = "timmfin@timmfin.net"

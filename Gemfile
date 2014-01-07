@@ -1,7 +1,7 @@
 source "http://rubygems.org"
 
 gem 'semver2', '~> 3.3.3'
-# gemspec
+gemspec
 
 group :test do
   gem 'rspec'
