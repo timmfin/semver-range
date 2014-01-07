@@ -675,21 +675,10 @@ describe SemVerRange do
   #   end
   # end
 
-  # it "should parse missing parts as wildcards when approximate" do
-  #   range_strings = [
-  #     "~> 1",
-  #     "~1.0",
-  #   ]
-  #
-  #   expected_ranges = [
-  #     SemVerRange.new(1, 0, 0, "~>"),
-  #     SemVerRange.new(1, 0, 0, "~"),
-  #   ]
-  #
-  #   range_strings.zip(expected_ranges).each do |str, expected|
-  #     SemVerRange.parse(str, TAG_FORMAT_WITHOUT_V).should eq(expected)
-  #   end
-  # end
+  it "should parse missing parts as wildcards when approximate" do
+    SemVerRange.parse("~> 1", "%M").should eq(SemVerRange.new(1, x, x, "~>"))
+    SemVerRange.parse("~> 1.0", "%M.%m").should eq(SemVerRange.new(1, 0, x, "~>"))
+  end
 
   it "shouldn't parse ranges with prerelase or metadata strings" do
     range_strings = [

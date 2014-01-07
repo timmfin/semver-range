@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'bundler/setup'
 require 'semver'
+require 'semver-extensions'
 
 module XSemVer
   APPROXIMATE_OPERATORS = [
@@ -362,9 +363,6 @@ module XSemVer
         gsub('%s', '(?:-(?<special>[A-Za-z][0-9A-Za-z\.]+))?').
         gsub('%d', '(?:\x2B(?<metadata>[0-9A-Za-z][0-9A-Za-z\.]*))?')
 
-      # puts "version_string: #{version_string}"
-      # print "regex_str:  #{regex_str.inspect}"
-
       regex = Regexp.new(regex_str)
       match = regex.match version_string
 
@@ -383,8 +381,10 @@ module XSemVer
         major, minor, patch = [major, minor, patch].map do |part|
           if is_wildcard_char? part
             part
-          else
+          elsif not part.nil?
             part.to_i
+          else
+            part
           end
         end
 
@@ -395,7 +395,7 @@ module XSemVer
 
         # Failed parse if major, minor, or patch wasn't found
         # and allow_missing is false
-        return nil if !allow_missing and [major, minor, patch].any? {|x| x.nil? }
+        return nil if not allow_missing and [major, minor, patch].any? {|x| x.nil? }
 
         # Otherwise, allow them to default to zero (`1.2` -> 1.2.0) or
         # wildcard (`~> 1.2` -> 1.2.x)
