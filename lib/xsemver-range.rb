@@ -15,6 +15,7 @@ module XSemVer
     '<=',
     '<',
     '=',
+    '==',
   ] + APPROXIMATE_OPERATORS
 
   WILDCARD_CHARS = [
